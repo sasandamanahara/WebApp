@@ -1,0 +1,155 @@
+================================================================================
+EE2120 SMART TEMPERATURE MONITORING SYSTEM — SCADA BACKEND API ENDPOINTS
+Hosted Base URL: https://piyumi.lankaerp.lk
+================================================================================
+
+1. REAL-TIME WEBSOCKET STREAM
+--------------------------------------------------------------------------------
+URL:         wss://piyumi.lankaerp.lk/ws  (or ws://localhost:3001/ws)
+Protocol:    WebSocket (JSON)
+Description: Streams real-time telemetry updates every 1.5 seconds for both ESP01 
+             and ESP02 nodes (raw DHT22/DS18B20, calibrated temps, difference, 
+             Kalman fused temp, GPS location, LED state feedback, alarms).
+
+2. REST API ENDPOINTS
+--------------------------------------------------------------------------------
+
+Endpoint:    GET /api/status
+Description: Returns backend server status, Mosquitto MQTT broker connection info, 
+             and current telemetry state for ESP01 & ESP02.
+Example:     https://piyumi.lankaerp.lk/api/status
+Response:
+{
+  "status": "ONLINE",
+  "mqttConnected": false,
+  "brokerUrl": "tcp://10.15.0.3:1883",
+  "devices": { "ESP01": { ... }, "ESP02": { ... } },
+  "thresholds": { "highTempThreshold": 32.0, "mismatchThreshold": 1.5 }
+}
+
+--------------------------------------------------------------------------------
+
+Endpoint:    POST /api/telemetry
+Description: Pushes raw or structured sensor telemetry directly via HTTP POST for a device (ESP01 or ESP02).
+             Updates the live telemetry, evaluates alarms, records history point, and broadcasts to WebSockets.
+Example:     https://piyumi.lankaerp.lk/api/telemetry
+Headers:     Content-Type: application/json
+Request Body:
+{
+  "device": "ESP01",              // "ESP01" or "ESP02"
+  "dht_raw": 27.2,
+  "dht_calibrated": 27.5,
+  "ds18b20_raw": 27.8,
+  "ds18b20_calibrated": 27.6,
+  "difference": 0.1,
+  "fused_temperature": 27.55,
+  "latitude": 7.2543,
+  "longitude": 80.5916,
+  "satellites": 10,
+  "gps_status": "3D FIX",
+  "led1": "OFF",
+  "led2": "OFF"
+}
+Response:
+{
+  "success": true,
+  "message": "Telemetry updated for ESP01",
+  "deviceId": "ESP01",
+  "fused_temperature": 27.55,
+  "timestamp": 1758607500000
+}
+
+--------------------------------------------------------------------------------
+
+Endpoint:    POST /api/led
+Description: Sends independent ON / OFF control commands for LED 1 or LED 2.
+             Publishes to MQTT (EE2120/ESP01/LED1/cmd) and updates hardware state feedback.
+Example:     https://piyumi.lankaerp.lk/api/led
+Headers:     Content-Type: application/json
+Request Body:
+{
+  "deviceId": "ESP01",   // "ESP01" or "ESP02"
+  "ledNum": 1,           // 1 for LED 1, 2 for LED 2
+  "command": "ON"        // "ON" or "OFF"
+}
+Response:
+{
+  "success": true,
+  "deviceId": "ESP01",
+  "ledNum": 1,
+  "command": "ON"
+}
+
+--------------------------------------------------------------------------------
+
+Endpoint:    GET /api/history
+Description: Retrieves timestamped historical telemetry log records for all nodes.
+Example:     https://piyumi.lankaerp.lk/api/history
+Response:
+[
+  {
+    "timestamp": 1758607500000,
+    "esp01_dht_raw": 26.8, "esp01_dht_cal": 27.1,
+    "esp01_ds18_raw": 27.6, "esp01_ds18_cal": 27.4,
+    "esp01_diff": 0.3, "esp01_fused": 27.28,
+    "esp02_dht_raw": 28.2, "esp02_dht_cal": 28.5,
+    "esp02_ds18_raw": 28.9, "esp02_ds18_cal": 28.7,
+    "esp02_diff": 0.2, "esp02_fused": 28.61
+  }
+]
+
+--------------------------------------------------------------------------------
+
+Endpoint:    GET /api/alarms
+Description: Retrieves active and historical alarm logs (high temp, mismatch, offline).
+Example:     https://piyumi.lankaerp.lk/api/alarms
+
+--------------------------------------------------------------------------------
+
+Endpoint:    POST /api/alarms/ack
+Description: Acknowledges an active alarm by ID.
+Example:     https://piyumi.lankaerp.lk/api/alarms/ack
+Request Body:
+{
+  "id": 1758607500123
+}
+Response:
+{
+  "success": true
+}
+
+--------------------------------------------------------------------------------
+
+Endpoint:    POST /api/calibration
+Description: Dynamically updates sensor linear calibration slope (m) and offset (c).
+Example:     https://piyumi.lankaerp.lk/api/calibration
+Request Body:
+{
+  "deviceId": "ESP01",
+  "dht_slope": 1.01,
+  "dht_offset": 0.02,
+  "ds18_slope": 0.99,
+  "ds18_offset": 0.07
+}
+Response:
+{
+  "success": true,
+  "calibration": { ... }
+}
+
+================================================================================
+3. MQTT BROKER TOPIC HIERARCHY (Mosquitto 10.15.0.3:1883)
+--------------------------------------------------------------------------------
+Telemetry Topics:
+- EE2120/ESP01/temp          : Fused / structured temperature telemetry
+- EE2120/ESP01/gps           : GNSS latitude, longitude coordinates
+- EE2120/ESP01/status        : Node online / offline heartbeat status
+- EE2120/ESP01/LED1/status   : Actual hardware state feedback for LED 1
+- EE2120/ESP01/LED2/status   : Actual hardware state feedback for LED 2
+
+Command Topics:
+- EE2120/ESP01/LED1/cmd      : Control command payload ("1"=ON, "0"=OFF)
+- EE2120/ESP01/LED2/cmd      : Control command payload ("1"=ON, "0"=OFF)
+
+(Equivalent topics exist for ESP02 under EE2120/ESP02/#)
+================================================================================

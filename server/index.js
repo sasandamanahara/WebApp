@@ -379,6 +379,60 @@ app.post('/api/led', (req, res) => {
   res.json({ success: true, deviceId, ledNum, command });
 });
 
+app.post('/api/telemetry', (req, res) => {
+  const data = req.body;
+  const deviceId = data.device || data.deviceId || 'ESP01';
+
+  if (!systemState[deviceId]) {
+    return res.status(400).json({ error: `Invalid device ID '${deviceId}'. Supported devices: ESP01, ESP02` });
+  }
+
+  const dev = systemState[deviceId];
+  dev.lastSeen = Date.now();
+  dev.status = 'online';
+
+  if (data.dht_raw !== undefined) dev.dht_raw = parseFloat(data.dht_raw);
+  if (data.dht_calibrated !== undefined) dev.dht_calibrated = parseFloat(data.dht_calibrated);
+  if (data.ds18b20_raw !== undefined) dev.ds18b20_raw = parseFloat(data.ds18b20_raw);
+  if (data.ds18b20_calibrated !== undefined) dev.ds18b20_calibrated = parseFloat(data.ds18b20_calibrated);
+
+  if (data.difference !== undefined) {
+    dev.difference = parseFloat(data.difference);
+  } else {
+    dev.difference = Number(Math.abs(dev.dht_calibrated - dev.ds18b20_calibrated).toFixed(2));
+  }
+
+  if (data.fused_temperature !== undefined) {
+    dev.fused_temperature = parseFloat(data.fused_temperature);
+  } else {
+    const w1 = dev.kalman_details.k_dht;
+    const w2 = dev.kalman_details.k_ds18;
+    dev.fused_temperature = Number((w1 * dev.dht_calibrated + w2 * dev.ds18b20_calibrated).toFixed(2));
+  }
+
+  if (data.latitude !== undefined && data.longitude !== undefined) {
+    dev.gps.latitude = parseFloat(data.latitude);
+    dev.gps.longitude = parseFloat(data.longitude);
+    dev.gps.valid = true;
+  }
+  if (data.satellites !== undefined) dev.gps.satellites = parseInt(data.satellites);
+  if (data.gps_status !== undefined) dev.gps.gps_status = data.gps_status;
+
+  if (data.led1 !== undefined) dev.led1.actual_state = data.led1 === 1 || data.led1 === 'ON' ? 'ON' : 'OFF';
+  if (data.led2 !== undefined) dev.led2.actual_state = data.led2 === 1 || data.led2 === 'ON' ? 'ON' : 'OFF';
+
+  addHistoricalPoint();
+  broadcastWebSocketState();
+
+  res.json({
+    success: true,
+    message: `Telemetry updated for ${deviceId}`,
+    deviceId,
+    fused_temperature: dev.fused_temperature,
+    timestamp: Date.now()
+  });
+});
+
 app.post('/api/calibration', (req, res) => {
   const { deviceId, dht_slope, dht_offset, ds18_slope, ds18_offset } = req.body;
   if (systemState[deviceId]) {
