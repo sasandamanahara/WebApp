@@ -13,9 +13,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static frontend files from build output (dist/)
-app.use(express.static(path.join(__dirname, '../dist')));
-
 const PORT = process.env.PORT || 3001;
 const MQTT_BROKER_URL = process.env.MQTT_BROKER_URL || 'tcp://10.15.0.3:1883';
 const MQTT_USERNAME = process.env.MQTT_USERNAME || 'ignition_scada';
@@ -392,6 +389,9 @@ app.post('/api/calibration', (req, res) => {
   }
   res.json({ success: true, calibration: systemState[deviceId].calibration });
 });
+
+// Serve static frontend files from build output (dist/) AFTER API routes
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // SPA fallback: Serve index.html for non-API routes (Express 5 compatible)
 app.use((req, res, next) => {
