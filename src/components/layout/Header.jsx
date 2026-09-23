@@ -1,161 +1,185 @@
 import React, { useState, useEffect } from 'react';
-import {
-  AppBar, Toolbar, Typography, Box, Tooltip,
-  IconButton, useTheme, Switch, Divider
-} from '@mui/material';
-import {
-  Sensors as SensorsIcon,
-  AccessTime as ClockIcon,
-  LightMode as LightModeIcon,
-  DarkMode as DarkModeIcon,
-} from '@mui/icons-material';
-import useMqttStore from '../../store/mqttStore';
-import { useThemeMode } from '../../theme/ThemeContext';
+import { Box, Container, Typography, Chip, Tabs, Tab, Stack, Button, Tooltip, IconButton, Menu, MenuItem } from '@mui/material';
+import MemoryIcon from '@mui/icons-material/Memory';
+import SensorsIcon from '@mui/icons-material/Sensors';
+import TimelineIcon from '@mui/icons-material/Timeline';
+import FunctionsIcon from '@mui/icons-material/Functions';
+import TuneIcon from '@mui/icons-material/Tune';
+import MapIcon from '@mui/icons-material/Map';
+import ToggleOnIcon from '@mui/icons-material/ToggleOn';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import HistoryIcon from '@mui/icons-material/History';
+import DnsIcon from '@mui/icons-material/Dns';
+import WifiIcon from '@mui/icons-material/Wifi';
+import WifiOffIcon from '@mui/icons-material/WifiOff';
+import useDeviceStore from '../../store/deviceStore';
+import useAlarmStore from '../../store/alarmStore';
 import useColors from '../../hooks/useColors';
-import { format } from 'date-fns';
+
+const navItems = [
+  { id: 'overview', label: 'Overview', icon: <SensorsIcon fontSize="small" /> },
+  { id: 'live', label: 'Live Monitoring', icon: <TimelineIcon fontSize="small" /> },
+  { id: 'fusion', label: 'Sensor Fusion', icon: <FunctionsIcon fontSize="small" /> },
+  { id: 'calibration', label: 'Calibration', icon: <TuneIcon fontSize="small" /> },
+  { id: 'gps', label: 'GPS / Location', icon: <MapIcon fontSize="small" /> },
+  { id: 'led', label: 'LED Controls', icon: <ToggleOnIcon fontSize="small" /> },
+  { id: 'alarms', label: 'Alarms & Events', icon: <NotificationsActiveIcon fontSize="small" /> },
+  { id: 'history', label: 'History Logs', icon: <HistoryIcon fontSize="small" /> },
+  { id: 'system', label: 'MQTT Diagnostics', icon: <DnsIcon fontSize="small" /> }
+];
 
 const Header = () => {
-  const { connected } = useMqttStore();
-  const { mode, toggleTheme } = useThemeMode();
   const C = useColors();
-  const theme = useTheme();
-  const isDark = mode === 'dark';
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const { activeView, setActiveView, selectedDevice, setSelectedDevice, backendConnected, mqttConnected } = useDeviceStore();
+  const { alarms } = useAlarmStore();
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+
+  const unackAlarmsCount = alarms.filter(a => !a.acknowledged).length;
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
     return () => clearInterval(timer);
   }, []);
 
   return (
-    <AppBar
-      position="sticky"
-      elevation={0}
-      sx={{
-        backdropFilter: 'blur(24px)',
-        zIndex: 1200,
-      }}
-    >
-      <Toolbar sx={{ minHeight: { xs: 64, sm: 72 }, px: { xs: 2, md: 4 }, gap: 1 }}>
-
-        {/* ── Logo ── */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mr: 3 }}>
-          <Box sx={{
-            width: 38, height: 38,
-            borderRadius: '10px',
-            background: `${C.accent}18`,
-            border: `1px solid ${C.accent}50`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: `0 0 16px ${C.accent}25`,
-          }}>
-            <SensorsIcon sx={{ color: C.accent, fontSize: 20 }} />
-          </Box>
-          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-            <Typography variant="subtitle1" sx={{
-              fontWeight: 700, lineHeight: 1.2, color: C.textPrimary, letterSpacing: '-0.01em'
+    <Box sx={{
+      borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+      background: 'linear-gradient(180deg, rgba(13, 20, 36, 0.95) 0%, rgba(8, 14, 26, 0.98) 100%)',
+      backdropFilter: 'blur(16px)',
+      position: 'sticky',
+      top: 0,
+      zIndex: 1100
+    }}>
+      {/* Top SCADA Branding Bar */}
+      <Box sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', py: 1.5, px: { xs: 2, md: 4 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+          
+          {/* Logo & Title */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{
+              width: 42,
+              height: 42,
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 16px rgba(0, 242, 254, 0.4)'
             }}>
-              Distributed Temp Monitor
-            </Typography>
-            <Typography variant="caption" sx={{ color: C.accent, fontWeight: 600, letterSpacing: '0.08em' }}>
-              EE2120 • IoT SCADA
-            </Typography>
+              <MemoryIcon sx={{ color: '#090E17', fontSize: 26 }} />
+            </Box>
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: '0.04em', fontSize: { xs: '1rem', md: '1.15rem' }, color: '#FFFFFF' }}>
+                  SMART TEMPERATURE MONITORING SYSTEM
+                </Typography>
+                <Chip label="EE2120 SCADA" size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: 'rgba(0, 242, 254, 0.15)', color: '#00F2FE', border: '1px solid rgba(0, 242, 254, 0.3)' }} />
+              </Box>
+              <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.75rem' }}>
+                University of Peradeniya • Dual-Node Sensor Fusion & GNSS Network
+              </Typography>
+            </Box>
           </Box>
-        </Box>
 
-        <Box sx={{ flexGrow: 1 }} />
+          {/* Node Selector & Real-Time Indicators */}
+          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+            {/* Dual Node Selector Pills */}
+            <Box sx={{ display: 'flex', bgcolor: 'rgba(255, 255, 255, 0.04)', p: 0.5, borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              {['ALL', 'ESP01', 'ESP02'].map(node => (
+                <Button
+                  key={node}
+                  size="small"
+                  onClick={() => setSelectedDevice(node)}
+                  sx={{
+                    px: 1.5,
+                    py: 0.4,
+                    minWidth: 'auto',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    color: selectedDevice === node ? '#090E17' : 'rgba(255, 255, 255, 0.7)',
+                    background: selectedDevice === node ? 'linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%)' : 'transparent',
+                    boxShadow: selectedDevice === node ? '0 0 10px rgba(0, 242, 254, 0.3)' : 'none',
+                    '&:hover': { color: selectedDevice === node ? '#090E17' : '#FFFFFF' }
+                  }}
+                >
+                  {node === 'ALL' ? 'Dual Nodes' : node}
+                </Button>
+              ))}
+            </Box>
 
-        {/* ── Live Clock ── */}
-        <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1, mr: 2, color: C.textMuted }}>
-          <ClockIcon sx={{ fontSize: 15 }} />
-          <Typography variant="body2" sx={{
-            fontFamily: '"Roboto Mono", monospace',
-            color: C.textSecondary,
-            fontSize: '0.8rem'
-          }}>
-            {format(currentTime, 'HH:mm:ss')} · {format(currentTime, 'dd MMM yyyy')}
-          </Typography>
-        </Box>
+            {/* MQTT Broker Status */}
+            <Tooltip title={mqttConnected ? "MQTT Broker Connected (10.15.0.3:1883)" : "MQTT Broker Offline (Using Mock Telemetry Stream)"}>
+              <Chip
+                icon={mqttConnected ? <WifiIcon style={{ color: '#00E676', fontSize: 16 }} /> : <WifiOffIcon style={{ color: '#FFAB00', fontSize: 16 }} />}
+                label={mqttConnected ? "MQTT 10.15.0.3" : "SIMULATOR MODE"}
+                size="small"
+                sx={{
+                  bgcolor: mqttConnected ? 'rgba(0, 230, 118, 0.12)' : 'rgba(255, 171, 0, 0.12)',
+                  color: mqttConnected ? '#00E676' : '#FFAB00',
+                  border: `1px solid ${mqttConnected ? 'rgba(0, 230, 118, 0.3)' : 'rgba(255, 171, 0, 0.3)'}`,
+                  fontWeight: 700,
+                  fontSize: '0.7rem'
+                }}
+              />
+            </Tooltip>
 
-        {/* ── MQTT Status ── */}
-        <Tooltip title={connected ? 'MQTT Broker Connected' : 'MQTT Broker Disconnected'} arrow>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2, cursor: 'default' }}>
-            <Box
-              sx={{
-                width: 8, height: 8, borderRadius: '50%',
-                bgcolor: connected ? C.green : C.red,
-                boxShadow: `0 0 8px ${connected ? C.green : C.red}`,
-              }}
-              className={connected ? 'pulse-online' : 'pulse-offline'}
-            />
-            <Typography variant="caption" sx={{
-              fontWeight: 700, color: connected ? C.green : C.red,
-              letterSpacing: '0.06em', display: { xs: 'none', sm: 'block' }, fontSize: '0.7rem'
-            }}>
-              {connected ? 'MQTT LIVE' : 'NO SIGNAL'}
+            {/* Active Alarms Badge */}
+            <IconButton onClick={() => setActiveView('alarms')} size="small" sx={{ bgcolor: unackAlarmsCount > 0 ? 'rgba(255, 23, 68, 0.2)' : 'rgba(255, 255, 255, 0.05)', color: unackAlarmsCount > 0 ? '#FF1744' : 'rgba(255, 255, 255, 0.7)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+              <NotificationsActiveIcon fontSize="small" />
+              {unackAlarmsCount > 0 && (
+                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#FF1744', position: 'absolute', top: 4, right: 4, animation: 'pulse 1.5s infinite' }} />
+              )}
+            </IconButton>
+
+            {/* Live Clock */}
+            <Typography variant="caption" sx={{ color: '#00F2FE', fontFamily: 'monospace', fontWeight: 700, fontSize: '0.85rem', bgcolor: 'rgba(0, 242, 254, 0.08)', px: 1.5, py: 0.5, borderRadius: '6px', border: '1px solid rgba(0, 242, 254, 0.2)' }}>
+              {currentTime}
             </Typography>
-          </Box>
-        </Tooltip>
+          </Stack>
+        </Box>
+      </Box>
 
-        <Divider orientation="vertical" flexItem sx={{ borderColor: C.border, mx: 1 }} />
-
-        {/* ── Dark / Light toggle ── */}
-        <Tooltip title={`Switch to ${isDark ? 'light' : 'dark'} mode`} arrow>
-          <Box sx={{
-            display: 'flex', alignItems: 'center', gap: 0.5,
-            px: 1.5, py: 0.75,
-            borderRadius: '24px',
-            border: `1px solid ${C.border}`,
-            background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            '&:hover': {
-              border: `1px solid ${C.accent}50`,
-              background: `${C.accent}10`,
-            },
+      {/* Navigation Tabs Bar */}
+      <Box sx={{ px: { xs: 1, md: 3 }, overflowX: 'auto', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+        <Tabs
+          value={activeView}
+          onChange={(e, val) => setActiveView(val)}
+          variant="scrollable"
+          scrollButtons="auto"
+          textColor="inherit"
+          IndicatorColor="primary"
+          sx={{
+            minHeight: 48,
+            '& .MuiTabs-indicator': {
+              height: 3,
+              borderRadius: '3px 3px 0 0',
+              background: 'linear-gradient(90deg, #00F2FE 0%, #4FACFE 100%)',
+              boxShadow: '0 0 12px #00F2FE'
+            }
           }}
-            onClick={toggleTheme}
-          >
-            <LightModeIcon sx={{
-              fontSize: 16,
-              color: isDark ? C.textMuted : C.amber,
-              transition: 'color 0.2s ease',
-            }} />
-            <Switch
-              checked={isDark}
-              onChange={toggleTheme}
-              size="small"
-              onClick={e => e.stopPropagation()} // prevent double-fire
+        >
+          {navItems.map(item => (
+            <Tab
+              key={item.id}
+              value={item.id}
+              icon={item.icon}
+              iconPosition="start"
+              label={item.label}
               sx={{
-                width: 36, height: 20, p: 0,
-                '& .MuiSwitch-switchBase': {
-                  p: 0.25,
-                  '&.Mui-checked': {
-                    transform: 'translateX(16px)',
-                    '& + .MuiSwitch-track': { bgcolor: C.accent, opacity: 0.8 },
-                  },
-                },
-                '& .MuiSwitch-thumb': {
-                  width: 15, height: 15,
-                  bgcolor: '#fff',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-                },
-                '& .MuiSwitch-track': {
-                  borderRadius: 10,
-                  bgcolor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.15)',
-                  opacity: '1 !important',
-                },
+                minHeight: 48,
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                textTransform: 'none',
+                color: activeView === item.id ? '#00F2FE' : 'rgba(255, 255, 255, 0.6)',
+                transition: 'all 0.2s ease',
+                '&:hover': { color: '#FFFFFF', bgcolor: 'rgba(255, 255, 255, 0.03)' }
               }}
             />
-            <DarkModeIcon sx={{
-              fontSize: 16,
-              color: isDark ? C.accent : C.textMuted,
-              transition: 'color 0.2s ease',
-            }} />
-          </Box>
-        </Tooltip>
-
-      </Toolbar>
-    </AppBar>
+          ))}
+        </Tabs>
+      </Box>
+    </Box>
   );
 };
 

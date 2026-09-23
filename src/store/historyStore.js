@@ -1,15 +1,17 @@
 import { create } from 'zustand';
 
-// We store history as an array of objects
-// { timestamp: ms, esp01_fused: val, esp02_fused: val, ... }
-const useHistoryStore = create((set, get) => ({
+const useHistoryStore = create((set) => ({
   history: [],
-  maxPoints: 100, // Maximum points to keep in memory for the chart to avoid memory leaks
-  
+  selectedTimeRange: '5m', // '1m', '5m', '30m', '1h', '6h', '24h'
+
+  setSelectedTimeRange: (range) => set({ selectedTimeRange: range }),
+
+  setInitialHistory: (logs) => set({ history: logs }),
+
   addDataPoint: (point) => set((state) => {
     const newHistory = [...state.history, point];
-    if (newHistory.length > state.maxPoints) {
-      newHistory.shift(); // Remove oldest
+    if (newHistory.length > 500) {
+      newHistory.shift();
     }
     return { history: newHistory };
   })
